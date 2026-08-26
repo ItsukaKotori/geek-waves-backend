@@ -10,7 +10,6 @@ import org.mockito.ArgumentCaptor;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -30,19 +29,20 @@ class BootstrapDataRunnerTest {
     }
 
     @Test
-    void seedsThreeSourcesWhenTableEmpty() {
+    void seedsTwoSourcesWhenTableEmpty() {
         when(sourceMapper.selectCount(any(QueryWrapper.class))).thenReturn(0L);
         runner.run(null);
         ArgumentCaptor<InfoSource> captor = ArgumentCaptor.forClass(InfoSource.class);
-        verify(sourceMapper, times(3)).insert(captor.capture());
+        verify(sourceMapper, times(2)).insert(captor.capture());
         List<InfoSource> rows = captor.getAllValues();
-        assertEquals("hn", findRow(rows, "hn").getCode());
         assertEquals("github-trending", findRow(rows, "github-trending").getCode());
         assertEquals("v2ex-hot", findRow(rows, "v2ex-hot").getCode());
-        assertEquals("{}", findRow(rows, "hn").getConfigJson());
-        assertEquals(Boolean.TRUE, findRow(rows, "hn").getEnabled());
-        assertEquals(Integer.valueOf(15), findRow(rows, "hn").getRefreshMinutes());
-        assertNotNull(findRow(rows, "hn").getBaseUrl());
+        assertEquals("RSS", findRow(rows, "v2ex-hot").getType());
+        assertEquals("https://www.v2ex.com/index.xml", findRow(rows, "v2ex-hot").getBaseUrl());
+        assertEquals("{}", findRow(rows, "v2ex-hot").getConfigJson());
+        assertEquals(Boolean.TRUE, findRow(rows, "v2ex-hot").getEnabled());
+        assertEquals(Integer.valueOf(60), findRow(rows, "v2ex-hot").getRefreshMinutes());
+        assertEquals(2, rows.size());
     }
 
     @Test

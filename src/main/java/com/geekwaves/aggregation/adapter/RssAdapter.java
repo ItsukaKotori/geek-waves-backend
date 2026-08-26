@@ -31,6 +31,7 @@ public class RssAdapter implements SourceAdapter {
             + "figcaption, figure, footer, h1, h2, h3, h4, h5, h6, header, li, main, nav, "
             + "ol, p, pre, section, table, tbody, tfoot, thead, tr, ul";
     private final ObjectMapper objectMapper;
+    private final WebClient.Builder webClientBuilder;
 
     @Override
     public SourceType type() {
@@ -48,7 +49,7 @@ public class RssAdapter implements SourceAdapter {
         if (feedUrl.isBlank()) {
             throw new IllegalArgumentException("RSS 源未配置 feed url(props url/baseUrl 均为空)");
         }
-        String xml = WebClient.builder().build().get().uri(URI.create(feedUrl))
+        String xml = webClientBuilder.build().get().uri(URI.create(feedUrl))
                 .retrieve().bodyToMono(String.class).block();
         var feed = new SyndFeedInput().build(new StringReader(xml));
         List<FetchedItem> items = new ArrayList<>();

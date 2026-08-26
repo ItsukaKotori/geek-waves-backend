@@ -6,6 +6,7 @@ import okhttp3.mockwebserver.MockWebServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.web.reactive.function.client.WebClient;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
@@ -24,7 +25,7 @@ class RssAdapterTest {
     void setUp() throws Exception {
         server = new MockWebServer();
         server.start();
-        adapter = new RssAdapter(new ObjectMapper());
+        adapter = new RssAdapter(new ObjectMapper(), WebClient.builder());
     }
 
     @AfterEach

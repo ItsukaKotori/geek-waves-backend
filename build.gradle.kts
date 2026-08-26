@@ -38,4 +38,6 @@ dependencies {
 }
 tasks.test {
     useJUnitPlatform()
+    // 透传 E2E 开关:-Dgeekwaves.e2e=true 时,运行需真实代理的网络集成测试
+    systemProperty("geekwaves.e2e", System.getProperty("geekwaves.e2e", "false"))
 }

@@ -87,12 +87,12 @@ class NewsControllerTest {
         mockMvc.perform(get("/api/news/sources"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.length()").value(3))
+                .andExpect(jsonPath("$.data.length()").value(2))
                 .andExpect(jsonPath("$.data[0].id").exists())
                 .andExpect(jsonPath("$.data[0].name").exists())
                 .andExpect(jsonPath("$.data[0].type").exists())
                 .andExpect(jsonPath("$.data[0].code").doesNotExist())
                 .andExpect(jsonPath("$.data[0].baseUrl").doesNotExist())
-                .andExpect(jsonPath("$.data[2].name").exists());
+                .andExpect(jsonPath("$.data[1].name").exists());
     }
 }
