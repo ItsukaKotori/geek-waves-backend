@@ -165,6 +165,23 @@ class AiServiceTest {
     }
 
     @Test
+    void doneMarkerPersistsExactlyOnceDespiteNaturalCompletion() {
+        when(providerMapper.selectList(any())).thenReturn(List.of(domainProvider()));
+        when(registry.match("OPENAI_COMPAT")).thenReturn(Optional.of(streamProvider));
+        when(streamProvider.streamChat(any(), anyList())).thenReturn(
+                Flux.just(new AiChunk("要点", false), new AiChunk("", true)));
+
+        service.analyze(42L, true, "203.0.113.7").collectList().block();
+
+        ArgumentCaptor<NewsItem> captor = ArgumentCaptor.forClass(NewsItem.class);
+        verify(newsItemMapper, times(2)).updateById(captor.capture());
+        List<NewsItem> updates = captor.getAllValues();
+        assertEquals("PENDING", updates.get(0).getAiStatus());
+        assertEquals("DONE", updates.get(1).getAiStatus());
+        assertEquals("要点", updates.get(1).getAiSummary());
+    }
+
+    @Test
     void rateLimitExceededThrowsTooManyRequests() {
         when(rateLimitPort.tryAcquire(anyString(), anyInt(), any(Duration.class))).thenReturn(false);
         ServiceException e = assertThrows(ServiceException.class, () -> service.analyze(42L, true, null));

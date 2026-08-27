@@ -17,6 +17,7 @@ import reactor.core.scheduler.Schedulers;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
@@ -61,11 +62,21 @@ public class AiService {
                 provider.getApiKeyEnc() == null ? null : cryptoService.decrypt(provider.getApiKeyEnc()),
                 provider.getModel());
         StringBuilder full = new StringBuilder();
+        AtomicBoolean persisted = new AtomicBoolean(false);
         return registry.match(provider.getVendor()).orElseThrow()
                 .streamChat(cfg, messages)
                 .publishOn(Schedulers.boundedElastic())
-                .doOnNext(chunk -> full.append(chunk.text() == null ? "" : chunk.text()))
-                .doOnComplete(() -> markDone(news.getId(), full.toString()));
+                .doOnNext(chunk -> {
+                    full.append(chunk.text() == null ? "" : chunk.text());
+                    if (chunk.done() && persisted.compareAndSet(false, true)) {
+                        markDone(news.getId(), full.toString());
+                    }
+                })
+                .doOnComplete(() -> {
+                    if (persisted.compareAndSet(false, true)) {
+                        markDone(news.getId(), full.toString());
+                    }
+                });
     }
 
     private com.geekwaves.ai.domain.AiProvider defaultProvider() {
