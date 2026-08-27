@@ -1,6 +1,13 @@
 package com.geekwaves.aggregation.adapter;
 
+import com.geekwaves.aggregation.domain.InfoSource;
+import okhttp3.mockwebserver.MockResponse;
+import okhttp3.mockwebserver.MockWebServer;
+import okhttp3.mockwebserver.RecordedRequest;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.web.reactive.function.client.WebClient;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
@@ -10,7 +17,33 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class HtmlAdapterTest {
 
-    private final HtmlAdapter adapter = new HtmlAdapter(new ObjectMapper());
+    private static final String TEST_USER_AGENT = "geekwaves-test-agent/1.0";
+
+    private MockWebServer server;
+    private HtmlAdapter adapter;
+
+    @BeforeEach
+    void setUp() throws Exception {
+        server = new MockWebServer();
+        server.start();
+        adapter = new HtmlAdapter(new ObjectMapper(),
+                WebClient.builder().defaultHeader("User-Agent", TEST_USER_AGENT));
+    }
+
+    @AfterEach
+    void tearDown() throws Exception {
+        server.shutdown();
+    }
+
+    private InfoSource sourceAtServer(String path) {
+        InfoSource source = new InfoSource();
+        source.setBaseUrl(server.url(path).toString());
+        return source;
+    }
+
+    private static MockResponse html(String body) {
+        return new MockResponse().setBody(body).addHeader("Content-Type", "text/html; charset=utf-8");
+    }
 
     private static tools.jackson.databind.JsonNode config(String json) throws Exception {
         return new ObjectMapper().readTree(json);
@@ -112,5 +145,35 @@ class HtmlAdapterTest {
                         "{\"listSelector\":\".item\",\"titleSelector\":\".title\"}"));
 
         assertEquals("https://example.com/u/1", items.get(0).url());
+    }
+
+    @Test
+    void fetchRequestsViaInjectedWebClientAndParsesResponse() throws Exception {
+        server.enqueue(html("""
+                <div class="item"><a class="title" href="/u/1">First</a><span class="time">5m</span></div>
+                <div class="item"><a class="title" href="/u/2">Second</a></div>"""));
+        InfoSource source = sourceAtServer("/list");
+        source.setConfigJson("{\"listSelector\":\".item\",\"titleSelector\":\".title\",\"hrefAttr\":\"href\",\"timeSelector\":\".time\"}");
+
+        List<FetchedItem> items = adapter.fetch(source, null);
+
+        assertEquals(2, items.size());
+        assertEquals("First", items.get(0).title());
+        assertEquals(server.url("/u/1").toString(), items.get(0).url());
+
+        RecordedRequest request = server.takeRequest();
+        assertEquals("/list", request.getPath());
+        assertEquals(TEST_USER_AGENT, request.getHeader("User-Agent"));
+    }
+
+    @Test
+    void fetchResolvesRelativeUrlsAgainstSourceBaseUrl() throws Exception {
+        server.enqueue(html("<div class=\"item\"><a class=\"title\" href=\"/u/1\">T</a></div>"));
+        InfoSource source = sourceAtServer("/page.html");
+        source.setConfigJson("{\"listSelector\":\".item\",\"titleSelector\":\".title\",\"hrefAttr\":\"href\"}");
+
+        List<FetchedItem> items = adapter.fetch(source, null);
+
+        assertEquals(server.url("/u/1").toString(), items.get(0).url());
     }
 }

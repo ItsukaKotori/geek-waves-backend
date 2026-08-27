@@ -6,9 +6,12 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.client.WebClient;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import java.net.URI;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -17,7 +20,9 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 public class HtmlAdapter implements SourceAdapter {
+    static final Duration FETCH_TIMEOUT = Duration.ofSeconds(15);
     private final ObjectMapper objectMapper;
+    private final WebClient.Builder webClientBuilder;
 
     @Override
     public SourceType type() {
@@ -28,9 +33,9 @@ public class HtmlAdapter implements SourceAdapter {
     public List<FetchedItem> fetch(InfoSource source, Instant since) throws Exception {
         var config = objectMapper.readValue(source.getConfigJson() == null || source.getConfigJson().isBlank()
                 ? "{}" : source.getConfigJson(), JsonNode.class);
-        Document doc = Jsoup.connect(source.getBaseUrl()).userAgent("Mozilla/5.0 GeekWaves/0.1")
-                .timeout(15000).get();
-        return parseFromDoc(doc, config);
+        String html = webClientBuilder.build().get().uri(URI.create(source.getBaseUrl()))
+                .retrieve().bodyToMono(String.class).timeout(FETCH_TIMEOUT).block();
+        return parseFromDoc(Jsoup.parse(html == null ? "" : html, source.getBaseUrl()), config);
     }
 
     public List<FetchedItem> parseFromHtml(String html, JsonNode config) {

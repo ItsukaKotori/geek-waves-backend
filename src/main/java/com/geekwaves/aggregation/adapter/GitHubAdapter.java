@@ -8,7 +8,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
-import java.io.IOException;
+import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -22,6 +22,7 @@ import java.util.List;
 public class GitHubAdapter implements SourceAdapter {
     static final Duration DEFAULT_PERIOD = Duration.ofDays(7);
     static final String DEFAULT_TRENDING_URL = "https://github.com/trending";
+    static final Duration FETCH_TIMEOUT = Duration.ofSeconds(15);
     private final WebClient.Builder webClientBuilder;
     private final ObjectMapper objectMapper;
 
@@ -78,8 +79,10 @@ public class GitHubAdapter implements SourceAdapter {
         return items;
     }
 
-    private List<FetchedItem> fetchTrending(String htmlUrl) throws IOException {
-        return fetchTrendingFromHtml(Jsoup.connect(htmlUrl).userAgent("Mozilla/5.0 GeekWaves/0.1").timeout(15000).get().html());
+    private List<FetchedItem> fetchTrending(String htmlUrl) {
+        String html = webClientBuilder.build().get().uri(URI.create(htmlUrl))
+                .retrieve().bodyToMono(String.class).timeout(FETCH_TIMEOUT).block();
+        return fetchTrendingFromHtml(html == null ? "" : html);
     }
 
     List<FetchedItem> fetchTrendingFromHtml(String html) {

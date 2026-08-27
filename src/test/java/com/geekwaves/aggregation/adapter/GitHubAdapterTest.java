@@ -17,6 +17,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class GitHubAdapterTest {
 
+    private static final String TEST_USER_AGENT = "geekwaves-test-agent/1.0";
+
     private MockWebServer server;
     private GitHubAdapter adapter;
 
@@ -24,7 +26,8 @@ class GitHubAdapterTest {
     void setUp() throws Exception {
         server = new MockWebServer();
         server.start();
-        adapter = new GitHubAdapter(WebClient.builder(), new ObjectMapper());
+        adapter = new GitHubAdapter(WebClient.builder().defaultHeader("User-Agent", TEST_USER_AGENT),
+                new ObjectMapper());
     }
 
     @AfterEach
@@ -40,6 +43,10 @@ class GitHubAdapterTest {
 
     private static MockResponse json(String body) {
         return new MockResponse().setBody(body).addHeader("Content-Type", "application/json");
+    }
+
+    private static MockResponse html(String body) {
+        return new MockResponse().setBody(body).addHeader("Content-Type", "text/html; charset=utf-8");
     }
 
     @Test
@@ -120,5 +127,24 @@ class GitHubAdapterTest {
         assertEquals(1, items.size());
         assertEquals("foo/bar", items.get(0).sourceItemId());
         assertEquals(1234, items.get(0).score());
+    }
+
+    @Test
+    void trendingHtmlFetchedThroughInjectedWebClient() throws Exception {
+        server.enqueue(html("""
+                <article class="Box-row"><h2><a>foo / bar</a></h2>
+                <p>a great lib</p><span class="d-inline-block">1,234</span></article>"""));
+        InfoSource source = sourceAtServer();
+        source.setConfigJson("{\"html\":\"" + server.url("/trending") + "\"}");
+
+        List<FetchedItem> items = adapter.fetch(source, null);
+
+        assertEquals(1, items.size());
+        assertEquals("foo/bar", items.get(0).sourceItemId());
+        assertEquals(1234, items.get(0).score());
+
+        RecordedRequest request = server.takeRequest();
+        assertEquals("/trending", request.getPath());
+        assertEquals(TEST_USER_AGENT, request.getHeader("User-Agent"));
     }
 }
