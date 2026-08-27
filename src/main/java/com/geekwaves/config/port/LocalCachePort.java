@@ -4,11 +4,13 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.Expiry;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.Duration;
 import java.util.Optional;
 
+@Slf4j
 @RequiredArgsConstructor
 public class LocalCachePort implements CachePort {
     private record Entry(String json, long expireAtNanos) {}
@@ -50,7 +52,8 @@ public class LocalCachePort implements CachePort {
     public void put(String key, Object value, Duration ttl) {
         try {
             store.put(key, new Entry(objectMapper.writeValueAsString(value), System.nanoTime() + ttl.toNanos()));
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            log.debug("cache put skipped key={}", key, e);
         }
     }
 

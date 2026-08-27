@@ -35,7 +35,8 @@ public class NewsService {
             try {
                 newsItemMapper.insert(entity);
                 created++;
-            } catch (DuplicateKeyException ignored) {
+            } catch (DuplicateKeyException e) {
+                log.debug("duplicate item skipped source={} url={}", source.getCode(), item.url(), e);
                 tryBackfillContent(source, item);
             }
         }

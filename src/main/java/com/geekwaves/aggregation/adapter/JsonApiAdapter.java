@@ -4,6 +4,7 @@ import com.geekwaves.aggregation.domain.InfoSource;
 import com.jayway.jsonpath.Configuration;
 import com.jayway.jsonpath.JsonPath;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import tools.jackson.databind.JsonNode;
@@ -17,6 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class JsonApiAdapter implements SourceAdapter {
@@ -91,7 +93,8 @@ public class JsonApiAdapter implements SourceAdapter {
     private Object read(Map<String, Object> row, String path) {
         try {
             return JsonPath.using(CONFIG).parse(row).read(path);
-        } catch (RuntimeException ignored) {
+        } catch (RuntimeException e) {
+            log.debug("json-path miss, treat as null: path={}", path, e);
             return null;
         }
     }
@@ -105,7 +108,8 @@ public class JsonApiAdapter implements SourceAdapter {
         } else {
             try {
                 raw = Long.parseLong(String.valueOf(value).trim());
-            } catch (RuntimeException ignored) {
+            } catch (RuntimeException e) {
+                log.debug("time unparsable, item skipped: value={}", value, e);
                 return null;
             }
         }
@@ -119,7 +123,8 @@ public class JsonApiAdapter implements SourceAdapter {
         if (value == null) return 0;
         try {
             return (int) Double.parseDouble(String.valueOf(value).trim());
-        } catch (RuntimeException ignored) {
+        } catch (RuntimeException e) {
+            log.debug("score unparsable, keep 0: value={}", value, e);
             return 0;
         }
     }

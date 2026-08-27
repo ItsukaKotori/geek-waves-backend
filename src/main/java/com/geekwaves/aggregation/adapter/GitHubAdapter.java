@@ -2,6 +2,7 @@ package com.geekwaves.aggregation.adapter;
 
 import com.geekwaves.aggregation.domain.InfoSource;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -17,6 +18,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class GitHubAdapter implements SourceAdapter {
@@ -56,7 +58,9 @@ public class GitHubAdapter implements SourceAdapter {
             Instant createdAt;
             try {
                 createdAt = Instant.parse(repo.path("created_at").asString(""));
-            } catch (RuntimeException ignored) {
+            } catch (RuntimeException e) {
+                log.debug("github created_at unparsable, repo skipped: repo={} value={}",
+                        repo.path("full_name").asString(""), repo.path("created_at").asString(""), e);
                 continue;
             }
             if (since != null && createdAt.isBefore(since)) continue;
@@ -97,7 +101,9 @@ public class GitHubAdapter implements SourceAdapter {
             if (!extras.isEmpty()) {
                 try {
                     stars = Long.parseLong(extras.get(0).text().replace(",", "").split("\\s")[0]);
-                } catch (RuntimeException ignored) {
+                } catch (RuntimeException e) {
+                    log.debug("github trending stars unparsable, keep 0: row={}",
+                            extras.get(0).text().trim(), e);
                 }
             }
             items.add(new FetchedItem(
