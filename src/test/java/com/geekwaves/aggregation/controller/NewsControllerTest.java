@@ -1,6 +1,8 @@
 package com.geekwaves.aggregation.controller;
 
+import com.geekwaves.aggregation.domain.FrameworkWatch;
 import com.geekwaves.aggregation.domain.NewsItem;
+import com.geekwaves.aggregation.domain.mapper.FrameworkWatchMapper;
 import com.geekwaves.aggregation.domain.mapper.NewsItemMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +25,8 @@ class NewsControllerTest {
     private MockMvc mockMvc;
     @Autowired
     private NewsItemMapper newsItemMapper;
+    @Autowired
+    private FrameworkWatchMapper frameworkWatchMapper;
 
     private NewsItem insert(String title, String category, long sourceId, LocalDateTime publishedAt) {
         NewsItem n = new NewsItem();
@@ -83,16 +87,37 @@ class NewsControllerTest {
     }
 
     @Test
+    void frameworksReturnsWatchBriefsOrderedByName() throws Exception {
+        FrameworkWatch watch = new FrameworkWatch();
+        watch.setName("Spring Boot");
+        watch.setGithubRepo("spring-projects/spring-boot");
+        frameworkWatchMapper.insert(watch);
+        FrameworkWatch other = new FrameworkWatch();
+        other.setName("Vue");
+        other.setGithubRepo("vuejs/core");
+        frameworkWatchMapper.insert(other);
+
+        mockMvc.perform(get("/api/news/frameworks"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].name").value("Spring Boot"))
+                .andExpect(jsonPath("$.data[0].id").exists())
+                .andExpect(jsonPath("$.data[0].githubRepo").doesNotExist());
+    }
+
+    @Test
     void sourcesReturnsEnabledBriefsOnly() throws Exception {
         mockMvc.perform(get("/api/news/sources"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data.length()").value(3))
                 .andExpect(jsonPath("$.data[0].id").exists())
                 .andExpect(jsonPath("$.data[0].name").exists())
                 .andExpect(jsonPath("$.data[0].type").exists())
                 .andExpect(jsonPath("$.data[0].code").doesNotExist())
                 .andExpect(jsonPath("$.data[0].baseUrl").doesNotExist())
-                .andExpect(jsonPath("$.data[1].name").exists());
+                .andExpect(jsonPath("$.data[1].name").exists())
+                .andExpect(jsonPath("$.data[2].name").value("Linux Do"));
     }
 }

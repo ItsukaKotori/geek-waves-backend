@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.geekwaves.aggregation.domain.InfoSource;
 import com.geekwaves.aggregation.domain.NewsItem;
+import com.geekwaves.aggregation.domain.mapper.FrameworkWatchMapper;
 import com.geekwaves.aggregation.domain.mapper.InfoSourceMapper;
 import com.geekwaves.aggregation.domain.mapper.NewsItemMapper;
 import com.geekwaves.aggregation.dto.NewsSourceBrief;
@@ -40,6 +41,7 @@ import static org.mockito.Mockito.when;
 class NewsQueryServiceTest {
     private NewsItemMapper newsItemMapper;
     private InfoSourceMapper infoSourceMapper;
+    private FrameworkWatchMapper frameworkWatchMapper;
     private LocalCachePort cachePort;
     private NewsQueryService service;
 
@@ -48,8 +50,9 @@ class NewsQueryServiceTest {
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), ""), NewsItem.class);
         newsItemMapper = mock(NewsItemMapper.class);
         infoSourceMapper = mock(InfoSourceMapper.class);
+        frameworkWatchMapper = mock(FrameworkWatchMapper.class);
         cachePort = spy(new LocalCachePort(JsonMapper.builder().build()));
-        service = new NewsQueryService(newsItemMapper, infoSourceMapper, cachePort);
+        service = new NewsQueryService(newsItemMapper, infoSourceMapper, frameworkWatchMapper, cachePort);
     }
 
     private NewsItem item(long id, String title, String category, long sourceId, LocalDateTime publishedAt) {

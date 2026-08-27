@@ -2,10 +2,13 @@ package com.geekwaves.aggregation.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.geekwaves.aggregation.domain.FrameworkWatch;
 import com.geekwaves.aggregation.domain.InfoSource;
 import com.geekwaves.aggregation.domain.NewsItem;
+import com.geekwaves.aggregation.domain.mapper.FrameworkWatchMapper;
 import com.geekwaves.aggregation.domain.mapper.InfoSourceMapper;
 import com.geekwaves.aggregation.domain.mapper.NewsItemMapper;
+import com.geekwaves.aggregation.dto.FrameworkBrief;
 import com.geekwaves.aggregation.dto.NewsSourceBrief;
 import com.geekwaves.config.port.CachePort;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +26,7 @@ import java.util.Optional;
 public class NewsQueryService {
     private final NewsItemMapper newsItemMapper;
     private final InfoSourceMapper infoSourceMapper;
+    private final FrameworkWatchMapper frameworkWatchMapper;
     private final CachePort cachePort;
     static final Duration TTL = Duration.ofMinutes(5);
 
@@ -59,6 +63,13 @@ public class NewsQueryService {
                 new QueryWrapper<InfoSource>().eq("enabled", true).orderByAsc("sort_order"));
         return sources.stream()
                 .map(s -> new NewsSourceBrief(s.getId(), s.getName(), s.getType()))
+                .toList();
+    }
+
+    /** 框架关注简表:RELEASE 类资讯的 source_id 即 framework_watch.id,供来源筛选与名称展示 */
+    public List<FrameworkBrief> frameworkBriefs() {
+        return frameworkWatchMapper.selectList(new QueryWrapper<FrameworkWatch>().orderByAsc("name")).stream()
+                .map(w -> new FrameworkBrief(w.getId(), w.getName()))
                 .toList();
     }
 }

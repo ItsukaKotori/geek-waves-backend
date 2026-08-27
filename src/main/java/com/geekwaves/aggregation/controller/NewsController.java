@@ -1,6 +1,7 @@
 package com.geekwaves.aggregation.controller;
 
 import com.geekwaves.aggregation.domain.NewsItem;
+import com.geekwaves.aggregation.dto.FrameworkBrief;
 import com.geekwaves.aggregation.dto.NewsSourceBrief;
 import com.geekwaves.aggregation.service.NewsQueryService;
 import lombok.RequiredArgsConstructor;
@@ -36,5 +37,10 @@ public class NewsController {
     @GetMapping("/sources")
     public Response<List<NewsSourceBrief>> sources() {
         return Response.success(queryService.enabledSources());
+    }
+
+    @GetMapping("/frameworks")
+    public Response<List<FrameworkBrief>> frameworks() {
+        return Response.success(queryService.frameworkBriefs());
     }
 }

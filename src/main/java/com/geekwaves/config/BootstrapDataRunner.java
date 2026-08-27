@@ -15,14 +15,16 @@ public class BootstrapDataRunner implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        if (sourceMapper.selectCount(new QueryWrapper<>()) > 0) {
-            return;
-        }
-        seed("GitHub Trending", "github-trending", "GITHUB_API", "https://api.github.com", 24);
-        seed("V2EX", "v2ex-hot", "RSS", "https://www.v2ex.com/index.xml", 60);
+        seedIfAbsent("GitHub Trending", "github-trending", "GITHUB_API", "https://api.github.com", 24);
+        seedIfAbsent("V2EX", "v2ex-hot", "RSS", "https://www.v2ex.com/index.xml", 60);
+        seedIfAbsent("Linux Do", "linux-do", "RSS", "https://linux.do/latest.rss", 60);
     }
 
-    private void seed(String name, String code, String type, String url, int interval) {
+    /** 内置源按 code 缺失才插入:老库升级补新源,用户数据零影响 */
+    private void seedIfAbsent(String name, String code, String type, String url, int interval) {
+        if (sourceMapper.selectCount(new QueryWrapper<InfoSource>().eq("code", code)) > 0) {
+            return;
+        }
         InfoSource s = new InfoSource();
         s.setName(name);
         s.setCode(code);
