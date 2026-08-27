@@ -34,13 +34,19 @@ public class WebClientConfig {
                 .clientConnector(new ReactorClientHttpConnector(buildHttpClient()));
     }
 
-    /** 延迟解析代理:每次连接读取最新 DB 配置;关闭/未配置时不走代理。
+    /** 延迟解析代理:每次连接解析最新 DB 配置;关闭/未配置时不走代理。
      * 协议启用 H2(H2C 协商 + TLS ALPN 的 H2):部分 CDN(Cloudflare)按 HTTP/2 指纹放行,
-     * HTTP/1.1 即使带正常浏览器 UA 也会被 403(linux.do 实测)。 */
+     * HTTP/1.1 即使带正常浏览器 UA 也会被 403(linux.do 实测)。附加 HTTP11 作为明文回退,
+     * 使无 h2c 能力的源不会落入 prior-knowledge 直发 H2 帧(否则握手即失败)。
+     * 跟随 301|302|303|307|308 重定向:恢复 Jsoup 直连时代的默认行为(HTTP/1 与 H2 流均生效),
+     * 源地址重定向不再静默空抓。 */
     HttpClient buildHttpClient() {
         return HttpClient.create()
-                .protocol(HttpProtocol.H2C, HttpProtocol.H2)
-                .proxyWhen((config, proxySpec) -> Mono.defer(() -> {
+                .protocol(HttpProtocol.H2C, HttpProtocol.H2, HttpProtocol.HTTP11)
+                .followRedirect(true)
+                .proxyWhen((config, proxySpec) -> {
+                    // 不可包 defer/supplier:reactor-netty 以 Mono.empty() 引用相等判断"跳过代理",
+                    // 返回包装实例会令连接静默完成、无任何响应(reactor-netty HttpClient#proxyWhen 实现约定)
                     ProxyConfig cfg = proxySettings.effective();
                     if (cfg == null || !Boolean.TRUE.equals(cfg.getEnabled())) {
                         return Mono.empty();
@@ -57,6 +63,6 @@ public class WebClientConfig {
                         }
                     }
                     return Mono.just(b);
-                }));
+                });
     }
 }

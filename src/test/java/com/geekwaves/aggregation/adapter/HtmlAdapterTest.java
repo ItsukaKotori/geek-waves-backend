@@ -1,6 +1,9 @@
 package com.geekwaves.aggregation.adapter;
 
 import com.geekwaves.aggregation.domain.InfoSource;
+import com.geekwaves.config.WebClientConfig;
+import com.geekwaves.config.domain.ProxyConfig;
+import com.geekwaves.config.service.ProxySettingsService;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
@@ -14,6 +17,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class HtmlAdapterTest {
 
@@ -175,5 +180,29 @@ class HtmlAdapterTest {
         List<FetchedItem> items = adapter.fetch(source, null);
 
         assertEquals(server.url("/u/1").toString(), items.get(0).url());
+    }
+
+    @Test
+    void fetchFollowsHttpRedirectAndParsesTargetContent() throws Exception {
+        ProxyConfig proxyDisabled = new ProxyConfig();
+        proxyDisabled.setEnabled(false);
+        proxyDisabled.setHost("127.0.0.1");
+        proxyDisabled.setPort(7890);
+        ProxySettingsService svc = mock(ProxySettingsService.class);
+        when(svc.effective()).thenReturn(proxyDisabled);
+        when(svc.rawPassword()).thenReturn(null);
+        HtmlAdapter configured = new HtmlAdapter(new ObjectMapper(),
+                new WebClientConfig(svc).webClientBuilder());
+
+        server.enqueue(new MockResponse().setResponseCode(302).addHeader("Location", "/redirected"));
+        server.enqueue(html("<div class=\"item\"><a class=\"title\" href=\"/u/9\">Redirected</a></div>"));
+        InfoSource source = sourceAtServer("/list");
+        source.setConfigJson("{\"listSelector\":\".item\",\"titleSelector\":\".title\",\"hrefAttr\":\"href\"}");
+
+        List<FetchedItem> items = configured.fetch(source, null);
+
+        assertEquals(1, items.size());
+        assertEquals("Redirected", items.get(0).title());
+        assertEquals(2, server.getRequestCount());
     }
 }
