@@ -271,6 +271,12 @@ class HtmlAdapterTest {
         assertAround(items.get(0).publishedAt(), LocalDateTime.now());
     }
 
+    @Test
+    void unknownUnitYieldsNullInsteadOfEscapingTheContainer() {
+        assertNull(HtmlAdapter.beforeNow(5, "刻钟"));
+        assertNull(HtmlAdapter.beforeNow(1, "fortnight"));
+    }
+
     private static String htmlWithTime(String timeText) {
         return "<div class=\"item\"><a class=\"title\" href=\"http://t/1\">T</a>"
                 + "<span class=\"time\">" + timeText + "</span></div>";

@@ -146,14 +146,18 @@ public class HtmlAdapter implements SourceAdapter {
             if (en.find()) return beforeNow(Long.parseLong(en.group(1)), en.group(2));
             var compact = COMPACT_RELATIVE.matcher(text);
             if (compact.find()) return beforeNow(Long.parseLong(compact.group(1)), compact.group(2));
-        } catch (ArithmeticException | DateTimeException | NumberFormatException ignored) {
+        } catch (ArithmeticException | DateTimeException | IllegalArgumentException ignored) {
         }
         return null;
     }
 
-    private static LocalDateTime beforeNow(long amount, String unit) {
-        long seconds = Math.multiplyExact(amount, unitSeconds(unit));
-        return LocalDateTime.now().minus(seconds, ChronoUnit.SECONDS);
+    static LocalDateTime beforeNow(long amount, String unit) {
+        try {
+            long seconds = Math.multiplyExact(amount, unitSeconds(unit));
+            return LocalDateTime.now().minus(seconds, ChronoUnit.SECONDS);
+        } catch (RuntimeException ignored) {
+            return null;
+        }
     }
 
     private static long unitSeconds(String unit) {
