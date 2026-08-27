@@ -53,7 +53,7 @@ public class TaskStatusService {
                 .toList();
 
         return new TaskStatusDto(schedulers, poolStatus(), sourceHealth, providerStatus, newsTotal,
-                System.currentTimeMillis());
+                System.currentTimeMillis(), null);
     }
 
     private TaskStatusDto.PoolStatusDto poolStatus() {

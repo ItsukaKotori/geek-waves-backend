@@ -10,7 +10,14 @@ public record TaskStatusDto(
         List<SourceHealthDto> sources,
         List<ProviderStatusDto> providers,
         long newsTotal,
-        long generatedAt) {
+        long generatedAt,
+        String error) {
+
+    /** 监控禁用时的降级结构:仅有 error 与 generatedAt,其余字段为零值/空 */
+    public static TaskStatusDto degraded(long generatedAt, String error) {
+        return new TaskStatusDto(List.of(), new PoolStatusDto(0, 0, 0),
+                List.of(), List.of(), 0, generatedAt, error);
+    }
 
     public record SchedulerRunDto(
             String name,

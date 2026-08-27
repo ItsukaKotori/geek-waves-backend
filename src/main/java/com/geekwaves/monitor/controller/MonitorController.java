@@ -41,6 +41,9 @@ public class MonitorController {
 
     @GetMapping("/tasks")
     public Response<TaskStatusDto> tasks() {
+        if (!props.isEnabled()) {
+            return Response.success(TaskStatusDto.degraded(now(), "监控已禁用"));
+        }
         return Response.success(taskStatusService.status());
     }
 

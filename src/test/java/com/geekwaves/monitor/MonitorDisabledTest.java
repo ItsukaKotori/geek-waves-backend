@@ -37,4 +37,16 @@ class MonitorDisabledTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.error").value("监控已禁用"));
     }
+
+    @Test
+    void tasksDegradedWhenDisabled() throws Exception {
+        mockMvc.perform(get("/api/monitor/tasks"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.error").value("监控已禁用"))
+                .andExpect(jsonPath("$.data.schedulers").isEmpty())
+                .andExpect(jsonPath("$.data.sources").isEmpty())
+                .andExpect(jsonPath("$.data.providers").isEmpty())
+                .andExpect(jsonPath("$.data.newsTotal").value(0));
+    }
 }
