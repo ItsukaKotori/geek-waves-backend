@@ -12,6 +12,7 @@ import org.jsoup.Jsoup;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
+import reactor.core.scheduler.Schedulers;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -47,11 +48,8 @@ public class AiService {
             throw ServiceException.create(HttpStatus.TOO_MANY_REQUESTS, "已有 AI 解读进行中,请稍候");
         }
         return streamInto(provider, news)
-                .doOnComplete(() -> concurrency.decrementAndGet())
-                .doOnError(e -> {
-                    concurrency.decrementAndGet();
-                    markFailed(news.getId(), e.getMessage());
-                });
+                .doOnError(e -> markFailed(news.getId(), e.getMessage()))
+                .doFinally(signal -> concurrency.decrementAndGet());
     }
 
     private Flux<AiChunk> streamInto(com.geekwaves.ai.domain.AiProvider provider, NewsItem news) {
@@ -62,13 +60,12 @@ public class AiService {
         var cfg = new AiProviderConfig(provider.getBaseUrl(),
                 provider.getApiKeyEnc() == null ? null : cryptoService.decrypt(provider.getApiKeyEnc()),
                 provider.getModel());
+        StringBuilder full = new StringBuilder();
         return registry.match(provider.getVendor()).orElseThrow()
                 .streamChat(cfg, messages)
-                .collectList().flatMapMany(chunks -> {
-                    String full = join(chunks);
-                    markDone(news.getId(), full);
-                    return Flux.fromIterable(chunks);
-                });
+                .publishOn(Schedulers.boundedElastic())
+                .doOnNext(chunk -> full.append(chunk.text() == null ? "" : chunk.text()))
+                .doOnComplete(() -> markDone(news.getId(), full.toString()));
     }
 
     private com.geekwaves.ai.domain.AiProvider defaultProvider() {
@@ -91,16 +88,6 @@ public class AiService {
             base = base.substring(0, 6000);
         }
         return "请解读以下技术资讯:\n" + base;
-    }
-
-    private String join(List<AiChunk> chunks) {
-        StringBuilder sb = new StringBuilder();
-        for (AiChunk c : chunks) {
-            if (c.text() != null) {
-                sb.append(c.text());
-            }
-        }
-        return sb.toString();
     }
 
     private String safeIp(String ip) {

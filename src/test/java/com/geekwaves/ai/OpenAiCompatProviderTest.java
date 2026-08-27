@@ -7,6 +7,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.util.List;
@@ -115,16 +116,14 @@ class OpenAiCompatProviderTest {
     }
 
     @Test
-    void serverErrorBecomesDoneChunkWithInterruptionMessage() {
+    void serverErrorsPropagateAsStreamFailure() {
         server.enqueue(new MockResponse().setResponseCode(500));
-        List<AiChunk> chunks = provider.streamChat(
-                        new AiProviderConfig(server.url("/").toString(), "k", "m"),
-                        List.of(new AiMessage("user", "hi")))
-                .collectList().block();
+        WebClientResponseException ex = assertThrows(WebClientResponseException.class,
+                () -> provider.streamChat(
+                                new AiProviderConfig(server.url("/").toString(), "k", "m"),
+                                List.of(new AiMessage("user", "hi")))
+                        .collectList().block());
 
-        assertNotNull(chunks);
-        assertEquals(1, chunks.size());
-        assertTrue(chunks.get(0).done());
-        assertTrue(chunks.get(0).text().contains("[流式中断]"));
+        assertEquals(500, ex.getStatusCode().value());
     }
 }

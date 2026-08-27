@@ -40,8 +40,7 @@ public class OpenAiCompatProvider implements AiProvider {
                 .bodyValue(body)
                 .retrieve()
                 .bodyToFlux(String.class)
-                .mapNotNull(this::parseLine)
-                .onErrorResume(e -> Flux.just(new AiChunk("\n[流式中断] " + e.getMessage(), true)));
+                .mapNotNull(this::parseLine);
     }
 
     private AiChunk parseLine(String line) {

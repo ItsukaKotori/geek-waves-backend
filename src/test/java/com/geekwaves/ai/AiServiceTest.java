@@ -10,12 +10,18 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.http.HttpStatus;
+import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Sinks;
 
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -115,6 +121,47 @@ class AiServiceTest {
 
         service.analyze(42L, true, "203.0.113.7").collectList().block();
         verify(streamProvider, times(2)).streamChat(any(), anyList());
+    }
+
+    @Test
+    void streamsEachChunkIncrementallyBeforeProviderCompletes() throws Exception {
+        when(providerMapper.selectList(any())).thenReturn(List.of(domainProvider()));
+        when(registry.match("OPENAI_COMPAT")).thenReturn(Optional.of(streamProvider));
+        Sinks.Many<AiChunk> sink = Sinks.many().unicast().onBackpressureBuffer();
+        when(streamProvider.streamChat(any(), anyList())).thenReturn(sink.asFlux());
+
+        CountDownLatch firstChunk = new CountDownLatch(1);
+        CountDownLatch terminated = new CountDownLatch(1);
+        AtomicInteger received = new AtomicInteger();
+        service.analyze(42L, true, "203.0.113.7")
+                .subscribe(chunk -> {
+                    received.incrementAndGet();
+                    firstChunk.countDown();
+                }, e -> terminated.countDown(), terminated::countDown);
+
+        sink.tryEmitNext(new AiChunk("增量", false));
+        assertTrue(firstChunk.await(2, TimeUnit.SECONDS),
+                "第一个 chunk 应在上游未完成时即时转发,而不是等 collectList 缓存");
+        assertEquals(1, received.get());
+
+        sink.tryEmitNext(new AiChunk("推送", false));
+        sink.tryEmitComplete();
+        assertTrue(terminated.await(2, TimeUnit.SECONDS), "上游完成后订阅应正常终止");
+        assertEquals(2, received.get());
+    }
+
+    @Test
+    void cancelledSubscriptionReleasesConcurrencySlot() {
+        when(providerMapper.selectList(any())).thenReturn(List.of(domainProvider()));
+        when(registry.match("OPENAI_COMPAT")).thenReturn(Optional.of(streamProvider));
+        Sinks.Many<AiChunk> sink = Sinks.many().unicast().onBackpressureBuffer();
+        when(streamProvider.streamChat(any(), anyList())).thenReturn(sink.asFlux());
+
+        Disposable disposable = service.analyze(42L, true, "203.0.113.7").subscribe();
+        disposable.dispose();
+
+        assertDoesNotThrow(() -> service.analyze(42L, true, "203.0.113.7"),
+                "取消订阅后并发闸门应释放,否则断连一次就永久卡死 AI 解读");
     }
 
     @Test
