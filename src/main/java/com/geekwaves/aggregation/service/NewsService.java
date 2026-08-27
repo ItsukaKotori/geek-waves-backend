@@ -3,6 +3,7 @@ package com.geekwaves.aggregation.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.geekwaves.aggregation.adapter.FetchedItem;
+import com.geekwaves.aggregation.adapter.SourceItemIdDigest;
 import com.geekwaves.aggregation.domain.InfoSource;
 import com.geekwaves.aggregation.domain.NewsItem;
 import com.geekwaves.aggregation.domain.mapper.NewsItemMapper;
@@ -11,10 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.time.LocalDateTime;
-import java.util.HexFormat;
 import java.util.List;
 
 @Slf4j
@@ -22,22 +20,12 @@ import java.util.List;
 @RequiredArgsConstructor
 public class NewsService {
     private static final int ITEM_ID_MAX = 64;
-    private static final int ITEM_ID_HASH_HEX = 40;
     private final NewsItemMapper newsItemMapper;
     private final CategoryResolver categoryResolver;
 
     static String normalizeSourceItemId(String raw) {
         if (raw == null || raw.isBlank()) return raw;
-        return raw.length() <= ITEM_ID_MAX ? raw : sha40(raw);
-    }
-
-    private static String sha40(String text) {
-        try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
-                    .digest(text.getBytes(StandardCharsets.UTF_8))).substring(0, ITEM_ID_HASH_HEX);
-        } catch (Exception e) {
-            throw new IllegalStateException("SHA-256 不可用", e);
-        }
+        return raw.length() <= ITEM_ID_MAX ? raw : SourceItemIdDigest.sha256First40(raw);
     }
 
     public int persist(InfoSource source, List<FetchedItem> items) {

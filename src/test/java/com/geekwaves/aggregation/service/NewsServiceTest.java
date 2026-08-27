@@ -80,6 +80,15 @@ class NewsServiceTest {    private NewsItemMapper newsItemMapper;
     }
 
     @Test
+    void fortyCharShaHexFromAdapterPassesThroughUnchanged() throws Exception {
+        String sha40 = java.util.HexFormat.of().formatHex(java.security.MessageDigest
+                .getInstance("SHA-256").digest("adapter-item".getBytes(java.nio.charset.StandardCharsets.UTF_8)))
+                .substring(0, 40);
+        assertEquals(sha40, NewsService.normalizeSourceItemId(sha40));
+        assertEquals(40, NewsService.normalizeSourceItemId(sha40).length());
+    }
+
+    @Test
     void persistDoesNotThrowOnSingleDuplicate() {
         InfoSource source = source(1L);
         doThrow(new DuplicateKeyException("dup")).when(newsItemMapper).insert(any(NewsItem.class));
