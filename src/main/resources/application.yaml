@@ -26,7 +26,7 @@ geekwaves:
   storage:
     cache: local
   crypto:
-    key: ${GEEKWAVES_CRYPTO_KEY:}   # 必填,空/缺失时 CryptoProperties 拒绝启动;不内置默认密钥
+    key: ${GEEKWAVES_CRYPTO_KEY:nRTuwGTsMuZ/JtMIuGmkuvnjP+KOc2LWn81DX5rSDS4=}   # 必填,空/缺失时 CryptoProperties 拒绝启动;不内置默认密钥
   monitor:
     enabled: true
 logging:
