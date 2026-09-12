@@ -12,11 +12,16 @@ dependencyResolutionManagement {
         maven { url = uri("https://maven.aliyun.com/repository/public") }
         maven { url = uri("https://maven.aliyun.com/repository/spring") }
         maven {
-            url = uri("http://nexus.local:8081/repository/maven-snapshots/")
-            isAllowInsecureProtocol = true
-            credentials {
-                username = providers.gradleProperty("nexusUsername").getOrElse("admin")
-                password = providers.gradleProperty("nexusPassword").get()
+            url = uri("https://maven.pkg.github.com/ItsukaKotori/itsuka-spring")
+            val gprUser = providers.gradleProperty("gpr.user")
+                .orElse(providers.environmentVariable("GITHUB_ACTOR")).orNull
+            val gprToken = providers.gradleProperty("gpr.token")
+                .orElse(providers.environmentVariable("GITHUB_TOKEN")).orNull
+            if (gprUser != null && gprToken != null) {
+                credentials {
+                    username = gprUser
+                    password = gprToken
+                }
             }
         }
         mavenCentral()
